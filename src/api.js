@@ -15,6 +15,7 @@ const toMatch = (row) => ({
   id: row.id,
   createdAt: row.created_at,
   result: row.result,
+  format: row.format?.name ?? '',
   myDeck: row.my_deck.name,
   oppDeck: row.opponent_deck.name,
   games: row.games
@@ -36,6 +37,7 @@ export async function fetchMatches() {
       .from('matches')
       .select(
         `id, created_at, result,
+         format:formats(name),
          my_deck:my_decks(name),
          opponent_deck:opponent_decks(name),
          games(game_number, on_play, my_hand_size, opp_hand_size, result, comments)`,
@@ -45,18 +47,20 @@ export async function fetchMatches() {
   return data.map(toMatch)
 }
 
-// Names for the deck pickers on the New Match page.
+// Names for the format and deck pickers on the New Match page.
 export async function fetchDeckNames() {
-  const [mine, theirs] = await Promise.all([
+  const [formats, mine, theirs] = await Promise.all([
+    timed(supabase.from('formats').select('name').order('name')),
     timed(supabase.from('my_decks').select('name').order('name')),
     timed(supabase.from('opponent_decks').select('name').order('name')),
   ])
-  return { myDecks: mine.map((d) => d.name), oppDecks: theirs.map((d) => d.name) }
+  return { formats: formats.map((f) => f.name), myDecks: mine.map((d) => d.name), oppDecks: theirs.map((d) => d.name) }
 }
 
 // payload comes from validateMatchForm() in stats.js.
 export async function submitMatch(payload) {
   const { data, error } = await supabase.rpc('submit_match', {
+    p_format: payload.format,
     p_my_deck: payload.myDeck,
     p_opp_deck: payload.oppDeck,
     p_games: payload.games,

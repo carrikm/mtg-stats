@@ -545,6 +545,10 @@ input[aria-invalid='true'] {
   gap: 1rem;
 }
 
+.deck-row .full-row {
+  grid-column: 1 / -1;
+}
+
 fieldset.game {
   display: grid;
   gap: 1rem;

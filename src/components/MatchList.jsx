@@ -20,6 +20,7 @@ export default function MatchList({ matches }) {
             <span className="match-title">
               {m.myDeck} <span className="muted">vs</span> {m.oppDeck}
             </span>
+            {m.format && <span className="muted">{m.format}</span>}
             <time className="muted" dateTime={m.createdAt}>
               {dateFormat.format(new Date(m.createdAt))}
             </time>

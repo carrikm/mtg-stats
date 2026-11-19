@@ -14,7 +14,7 @@ export default function NewMatch({ session, onSaved }) {
 function MatchForm({ onSaved }) {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
-  const [deckNames, setDeckNames] = useState({ myDecks: [], oppDecks: [] })
+  const [deckNames, setDeckNames] = useState({ formats: [], myDecks: [], oppDecks: [] })
   const [status, setStatus] = useState({ state: 'idle' })
   const formRef = useRef(null)
 
@@ -57,7 +57,7 @@ function MatchForm({ onSaved }) {
     try {
       await submitMatch(payload)
       setForm(emptyForm())
-      setStatus({ state: 'saved', summary: `${payload.myDeck} vs ${payload.oppDeck}` })
+      setStatus({ state: 'saved', summary: `${payload.myDeck} vs ${payload.oppDeck} (${payload.format})` })
       loadDeckNames()
       onSaved()
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -77,6 +77,15 @@ function MatchForm({ onSaved }) {
       )}
 
       <div className="card deck-row">
+        <DeckInput
+          label="Format"
+          noun="format"
+          className="field full-row"
+          value={form.format}
+          onChange={(v) => setDeck('format', v)}
+          options={deckNames.formats}
+          error={errors.format}
+        />
         <DeckInput
           label="My deck"
           value={form.myDeck}

@@ -1,6 +1,6 @@
 // Pure functions for match results, win rates, and form validation.
 // A "match" here is the shape returned by fetchMatches() in api.js:
-//   { id, createdAt, result, myDeck, oppDeck, games: [{ gameNumber, onPlay, myHand, oppHand, result, comments }] }
+//   { id, createdAt, result, format, myDeck, oppDeck, games: [{ gameNumber, onPlay, myHand, oppHand, result, comments }] }
 
 export const RESULTS = ['win', 'loss', 'draw']
 
@@ -63,13 +63,16 @@ export function topDecks(matches, n = 5) {
 }
 
 // Empty filter values mean "all".
-export function filterMatches(matches, { myDeck = '', oppDeck = '' } = {}) {
-  return matches.filter((m) => (!myDeck || m.myDeck === myDeck) && (!oppDeck || m.oppDeck === oppDeck))
+export function filterMatches(matches, { format = '', myDeck = '', oppDeck = '' } = {}) {
+  return matches.filter(
+    (m) =>
+      (!format || m.format === format) && (!myDeck || m.myDeck === myDeck) && (!oppDeck || m.oppDeck === oppDeck),
+  )
 }
 
 export const emptyGame = () => ({ play: '', myHand: '', oppHand: '', result: '', comments: '' })
 
-export const emptyForm = () => ({ myDeck: '', oppDeck: '', games: [emptyGame(), emptyGame(), emptyGame()] })
+export const emptyForm = () => ({ format: '', myDeck: '', oppDeck: '', games: [emptyGame(), emptyGame(), emptyGame()] })
 
 const REQUIRED_GAME_FIELDS = ['play', 'myHand', 'oppHand', 'result']
 
@@ -90,6 +93,7 @@ function validHandSize(v) {
 // to messages; payload is ready for submitMatch() when errors is empty.
 export function validateMatchForm(form) {
   const errors = {}
+  if (!form.format.trim()) errors.format = 'Choose or type a format.'
   if (!form.myDeck.trim()) errors.myDeck = 'Choose or type your deck.'
   if (!form.oppDeck.trim()) errors.oppDeck = "Choose or type your opponent's deck."
 
@@ -115,6 +119,7 @@ export function validateMatchForm(form) {
   })
 
   const payload = {
+    format: form.format.trim(),
     myDeck: form.myDeck.trim(),
     oppDeck: form.oppDeck.trim(),
     games: played.map(({ n, game }) => ({

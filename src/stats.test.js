@@ -52,7 +52,7 @@ const sample = [
   match('BR Reanimator', 'UG Show and Tell', [false, 'loss'], [true, 'win'], [false, 'loss']),
   match('Mono Red', 'UG Show and Tell', [true, 'win'], [false, 'loss']),
   match('BR Reanimator', 'Dimir Tempo', [false, 'win'], [true, 'win']),
-]
+].map((m, i) => ({ ...m, format: i === 2 ? 'Pauper' : 'Legacy' }))
 
 describe('summarize', () => {
   const s = summarize(sample)
@@ -84,11 +84,14 @@ describe('grouping and filtering', () => {
     expect(filterMatches(sample, { oppDeck: 'UG Show and Tell' })).toHaveLength(3)
     expect(filterMatches(sample, { myDeck: 'BR Reanimator', oppDeck: 'UG Show and Tell' })).toHaveLength(2)
     expect(filterMatches(sample, {})).toHaveLength(4)
+    expect(filterMatches(sample, { format: 'Legacy' })).toHaveLength(3)
+    expect(filterMatches(sample, { format: 'Pauper', oppDeck: 'UG Show and Tell' })).toHaveLength(1)
   })
 })
 
 function filledForm(results) {
   const form = emptyForm()
+  form.format = 'Legacy'
   form.myDeck = ' BR Reanimator '
   form.oppDeck = 'UG Show and Tell'
   results.forEach((r, i) => {
@@ -113,7 +116,7 @@ describe('validateMatchForm', () => {
   it('requires all of Games 1 and 2 except comments', () => {
     const { errors } = validateMatchForm(emptyForm())
     expect(Object.keys(errors).sort()).toEqual(
-      ['myDeck', 'oppDeck', 'g1.play', 'g1.myHand', 'g1.oppHand', 'g1.result', 'g2.play', 'g2.myHand', 'g2.oppHand', 'g2.result'].sort(),
+      ['format', 'myDeck', 'oppDeck', 'g1.play', 'g1.myHand', 'g1.oppHand', 'g1.result', 'g2.play', 'g2.myHand', 'g2.oppHand', 'g2.result'].sort(),
     )
   })
   it('rejects a partly filled Game 3', () => {

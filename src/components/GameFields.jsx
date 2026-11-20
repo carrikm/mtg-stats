@@ -74,9 +74,9 @@ export default function GameFields({ number, game, onChange, errors, optional, l
           onChange={set('play')}
           error={err('play')}
         />
-        <HandSelect label="My starting hand" value={game.myHand} onChange={set('myHand')} error={err('myHand')} />
+        <HandSelect label="My starting hand size" value={game.myHand} onChange={set('myHand')} error={err('myHand')} />
         <HandSelect
-          label="Opponent's starting hand"
+          label="Opponent's starting hand size"
           value={game.oppHand}
           onChange={set('oppHand')}
           error={err('oppHand')}

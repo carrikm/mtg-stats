@@ -1,30 +1,39 @@
 -- MTG Results Tracker schema.
 -- Run this once in the SQL editor of the MTG project's own Supabase database.
+-- Already set up from an older version? Run the upgrade scripts in the README instead.
+--
+-- Every user has their own private data: their own decks, opponent decks, formats,
+-- and matches. Row-level security makes sure each user can only ever read their own
+-- rows, and all writes go through submit_match, which always saves to the caller.
 
--- Decks I play. Names are unique ignoring case, so "BR Reanimator" and
--- "br reanimator" are the same deck.
+-- Decks a user plays. Names are unique per user ignoring case, so "BR Reanimator"
+-- and "br reanimator" are the same deck.
 create table my_decks (
   id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null check (length(trim(name)) > 0)
 );
-create unique index my_decks_name_key on my_decks (lower(name));
+create unique index my_decks_name_key on my_decks (user_id, lower(name));
 
--- Decks I play against. Kept as a separate list from my own decks.
+-- Decks a user plays against. Kept as a separate list from their own decks.
 create table opponent_decks (
   id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null check (length(trim(name)) > 0)
 );
-create unique index opponent_decks_name_key on opponent_decks (lower(name));
+create unique index opponent_decks_name_key on opponent_decks (user_id, lower(name));
 
 -- Formats a match can be played in (Legacy, Modern, Pauper, ...).
 create table formats (
   id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null check (length(trim(name)) > 0)
 );
-create unique index formats_name_key on formats (lower(name));
+create unique index formats_name_key on formats (user_id, lower(name));
 
 create table matches (
   id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   created_at timestamptz not null default now(),
   my_deck_id bigint not null references my_decks (id),
   opponent_deck_id bigint not null references opponent_decks (id),
@@ -33,8 +42,10 @@ create table matches (
   format_id bigint references formats (id),
   result text not null check (result in ('win', 'loss', 'draw'))
 );
+create index matches_user_id_idx on matches (user_id, created_at desc);
 
 -- One row per game actually played. An unplayed Game 3 has no row.
+-- A game belongs to whoever owns its match.
 create table games (
   id bigint generated always as identity primary key,
   match_id bigint not null references matches (id) on delete cascade,
@@ -47,36 +58,39 @@ create table games (
   unique (match_id, game_number)
 );
 
--- Anyone with the site URL can read; only a signed-in user can add data.
+-- Each signed-in user can read only their own rows. Signed-out visitors can read nothing.
+-- There are no insert policies: the only way to add data is submit_match below.
 alter table my_decks enable row level security;
 alter table opponent_decks enable row level security;
 alter table formats enable row level security;
 alter table matches enable row level security;
 alter table games enable row level security;
 
-create policy "Public read" on my_decks for select using (true);
-create policy "Public read" on opponent_decks for select using (true);
-create policy "Public read" on formats for select using (true);
-create policy "Public read" on matches for select using (true);
-create policy "Public read" on games for select using (true);
+create policy "Owner read" on my_decks for select to authenticated using (user_id = (select auth.uid()));
+create policy "Owner read" on opponent_decks for select to authenticated using (user_id = (select auth.uid()));
+create policy "Owner read" on formats for select to authenticated using (user_id = (select auth.uid()));
+create policy "Owner read" on matches for select to authenticated using (user_id = (select auth.uid()));
+create policy "Owner read" on games for select to authenticated using (
+  exists (select 1 from matches m where m.id = match_id and m.user_id = (select auth.uid()))
+);
 
-create policy "Signed-in insert" on my_decks for insert to authenticated with check (true);
-create policy "Signed-in insert" on opponent_decks for insert to authenticated with check (true);
-create policy "Signed-in insert" on formats for insert to authenticated with check (true);
-create policy "Signed-in insert" on matches for insert to authenticated with check (true);
-create policy "Signed-in insert" on games for insert to authenticated with check (true);
-
--- Saves a whole match in one transaction: finds or creates the format and both decks,
--- works out the match result from the games, and inserts everything.
+-- Saves a whole match for the signed-in user in one transaction: finds or creates
+-- their format and both decks, works out the match result from the games, and
+-- inserts everything.
 -- p_games is a JSON array of 2 or 3 objects:
 --   { "game_number": 1, "on_play": true, "my_hand_size": 7,
 --     "opp_hand_size": 6, "result": "win", "comments": "..." }
+--
+-- Runs as security definer (row-level security doesn't apply inside it), so every
+-- lookup and insert below is pinned to auth.uid() by hand.
 create or replace function submit_match(p_format text, p_my_deck text, p_opp_deck text, p_games jsonb)
 returns bigint
 language plpgsql
-security invoker
+security definer
+set search_path = public
 as $$
 declare
+  v_user_id uuid := auth.uid();
   v_my_deck_id bigint;
   v_opp_deck_id bigint;
   v_format_id bigint;
@@ -84,6 +98,9 @@ declare
   v_wins int;
   v_losses int;
 begin
+  if v_user_id is null then
+    raise exception 'You need to be signed in to save a match.';
+  end if;
   p_format := trim(p_format);
   if p_format is null or p_format = '' then
     raise exception 'A format is required.';
@@ -97,19 +114,19 @@ begin
     raise exception 'A match needs 2 or 3 games.';
   end if;
 
-  select id into v_format_id from formats where lower(name) = lower(p_format);
+  select id into v_format_id from formats where user_id = v_user_id and lower(name) = lower(p_format);
   if v_format_id is null then
-    insert into formats (name) values (p_format) returning id into v_format_id;
+    insert into formats (user_id, name) values (v_user_id, p_format) returning id into v_format_id;
   end if;
 
-  select id into v_my_deck_id from my_decks where lower(name) = lower(p_my_deck);
+  select id into v_my_deck_id from my_decks where user_id = v_user_id and lower(name) = lower(p_my_deck);
   if v_my_deck_id is null then
-    insert into my_decks (name) values (p_my_deck) returning id into v_my_deck_id;
+    insert into my_decks (user_id, name) values (v_user_id, p_my_deck) returning id into v_my_deck_id;
   end if;
 
-  select id into v_opp_deck_id from opponent_decks where lower(name) = lower(p_opp_deck);
+  select id into v_opp_deck_id from opponent_decks where user_id = v_user_id and lower(name) = lower(p_opp_deck);
   if v_opp_deck_id is null then
-    insert into opponent_decks (name) values (p_opp_deck) returning id into v_opp_deck_id;
+    insert into opponent_decks (user_id, name) values (v_user_id, p_opp_deck) returning id into v_opp_deck_id;
   end if;
 
   select count(*) filter (where g ->> 'result' = 'win'),
@@ -117,8 +134,9 @@ begin
     into v_wins, v_losses
     from jsonb_array_elements(p_games) as g;
 
-  insert into matches (format_id, my_deck_id, opponent_deck_id, result)
+  insert into matches (user_id, format_id, my_deck_id, opponent_deck_id, result)
   values (
+    v_user_id,
     v_format_id,
     v_my_deck_id,
     v_opp_deck_id,

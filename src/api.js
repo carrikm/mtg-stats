@@ -30,7 +30,8 @@ const toMatch = (row) => ({
     .sort((a, b) => a.gameNumber - b.gameNumber),
 })
 
-// All matches, newest first, with deck names and games.
+// The signed-in user's matches, newest first, with deck names and games.
+// Row-level security limits every query to the caller's own rows.
 export async function fetchMatches() {
   const data = await timed(
     supabase
@@ -70,4 +71,11 @@ export async function submitMatch(payload) {
 }
 
 export const signIn = (email, password) => supabase.auth.signInWithPassword({ email, password })
+// The confirmation email links back to this site.
+export const signUp = (email, password) =>
+  supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).href },
+  })
 export const signOut = () => supabase.auth.signOut()

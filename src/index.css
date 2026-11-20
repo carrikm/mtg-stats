@@ -535,7 +535,8 @@ input[aria-invalid='true'] {
   max-width: 400px;
 }
 
-.login h1 {
+.login h1,
+.login p {
   margin: 0;
 }
 

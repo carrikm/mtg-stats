@@ -3,15 +3,10 @@ import { Link } from 'react-router'
 import { fetchDeckNames, submitMatch } from '../api'
 import DeckInput from '../components/DeckInput'
 import GameFields from '../components/GameFields'
-import LoginForm from '../components/LoginForm'
 import { decidedAfterTwo, emptyForm, emptyGame, validateMatchForm } from '../stats'
 
-export default function NewMatch({ session, onSaved }) {
-  if (!session) return <LoginForm />
-  return <MatchForm onSaved={onSaved} />
-}
-
-function MatchForm({ onSaved }) {
+// App only shows this page to a signed-in user.
+export default function NewMatch({ onSaved }) {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
   const [deckNames, setDeckNames] = useState({ formats: [], myDecks: [], oppDecks: [] })

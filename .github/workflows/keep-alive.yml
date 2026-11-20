@@ -1,7 +1,8 @@
 name: Keep Supabase awake
 
 # Free Supabase projects pause after about a week of inactivity.
-# This reads one row a day so the project always counts as active.
+# This makes one request a day so the project always counts as active.
+# The request is signed out, so row-level security returns an empty list; that's expected.
 on:
   schedule:
     - cron: '43 12 * * *' # daily, 12:43 UTC

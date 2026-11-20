@@ -10,7 +10,7 @@ Built with Vite, React, Recharts, and Supabase.
 
 - **Dashboard** (`/`): match win rate with a win/loss/draw pie chart, game win rate, play vs draw win rates (per game and per match, using Game 1), and the 5 most played decks. Can be filtered by format.
 - **Breakdown** (`/stats`): filter by format, my deck, opponent's deck, or any combination (for example, everything against UG Show and Tell, or only BR Reanimator against UG Show and Tell). Includes per-deck tables and the full match list with comments.
-- **New Match** (`/new`): log a best-of-3 match. Games 1 and 2 are required; Game 3 is optional.
+- **New Match** (`/new`): log a best-of-3 match. Games 1 and 2 are required; Game 3 is optional. The Format picker always offers Legacy, Standard, Pioneer, Modern, and Vintage, plus any format you've typed before. Starting hand sizes are dropdowns (7 down to 0) that start at 7.
 
 Every page requires signing in. Signed-out visitors see the sign-in / create-account form.
 

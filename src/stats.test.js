@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_FORMATS,
   decidedAfterTwo,
   emptyForm,
   filterMatches,
@@ -7,6 +8,7 @@ import {
   formatRecord,
   groupBy,
   matchResult,
+  mergeNames,
   record,
   summarize,
   topDecks,
@@ -89,6 +91,22 @@ describe('grouping and filtering', () => {
   })
 })
 
+describe('mergeNames', () => {
+  it('lists the default formats for a new user', () => {
+    expect(mergeNames(DEFAULT_FORMATS, [])).toEqual(['Legacy', 'Modern', 'Pioneer', 'Standard', 'Vintage'])
+  })
+  it("adds the user's own formats and keeps their spelling of a default", () => {
+    expect(mergeNames(DEFAULT_FORMATS, ['Pauper', 'legacy'])).toEqual([
+      'legacy',
+      'Modern',
+      'Pauper',
+      'Pioneer',
+      'Standard',
+      'Vintage',
+    ])
+  })
+})
+
 function filledForm(results) {
   const form = emptyForm()
   form.format = 'Legacy'
@@ -114,16 +132,26 @@ describe('validateMatchForm', () => {
     expect(payload.games).toHaveLength(3)
   })
   it('requires all of Games 1 and 2 except comments', () => {
-    const { errors } = validateMatchForm(emptyForm())
+    const form = emptyForm()
+    form.games[0].myHand = ''
+    const { errors } = validateMatchForm(form)
     expect(Object.keys(errors).sort()).toEqual(
-      ['format', 'myDeck', 'oppDeck', 'g1.play', 'g1.myHand', 'g1.oppHand', 'g1.result', 'g2.play', 'g2.myHand', 'g2.oppHand', 'g2.result'].sort(),
+      ['format', 'myDeck', 'oppDeck', 'g1.play', 'g1.myHand', 'g1.result', 'g2.play', 'g2.result'].sort(),
     )
+  })
+  it('starts each game with 7-card hands', () => {
+    expect(emptyForm().games.every((g) => g.myHand === '7' && g.oppHand === '7')).toBe(true)
+  })
+  it('treats an untouched Game 3 as not played despite its default hand sizes', () => {
+    const { errors, payload } = validateMatchForm(filledForm(['win', 'loss']))
+    expect(errors).toEqual({})
+    expect(payload.games).toHaveLength(2)
   })
   it('rejects a partly filled Game 3', () => {
     const form = filledForm(['win', 'loss'])
     form.games[2].play = 'play'
     const { errors } = validateMatchForm(form)
-    expect(Object.keys(errors).sort()).toEqual(['g3.myHand', 'g3.oppHand', 'g3.result'])
+    expect(Object.keys(errors)).toEqual(['g3.result'])
   })
   it('ignores a comment-only Game 3', () => {
     const form = filledForm(['win', 'loss'])

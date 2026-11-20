@@ -70,11 +70,28 @@ export function filterMatches(matches, { format = '', myDeck = '', oppDeck = '' 
   )
 }
 
-export const emptyGame = () => ({ play: '', myHand: '', oppHand: '', result: '', comments: '' })
+// Formats offered to every user before they've logged anything. Picking one saves it
+// to that user's own formats the first time they submit a match with it.
+export const DEFAULT_FORMATS = ['Legacy', 'Standard', 'Pioneer', 'Modern', 'Vintage']
+
+// Combine preset names with the user's saved ones, ignoring case. The user's own
+// spelling wins, so a saved "legacy" isn't listed twice. Sorted by name.
+export function mergeNames(defaults, saved) {
+  const byKey = new Map(defaults.map((n) => [n.toLowerCase(), n]))
+  for (const n of saved) byKey.set(n.toLowerCase(), n)
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b))
+}
+
+// Starting hand sizes for the dropdowns, from no mulligan down. Values are strings
+// to match the form state.
+export const HAND_SIZES = ['7', '6', '5', '4', '3', '2', '1', '0']
+
+export const emptyGame = () => ({ play: '', myHand: '7', oppHand: '7', result: '', comments: '' })
 
 export const emptyForm = () => ({ format: '', myDeck: '', oppDeck: '', games: [emptyGame(), emptyGame(), emptyGame()] })
 
-const REQUIRED_GAME_FIELDS = ['play', 'myHand', 'oppHand', 'result']
+// Hand sizes always have a value (7 by default), so only these show Game 3 was played.
+const GAME_STARTED_FIELDS = ['play', 'result']
 
 const hasValue = (v) => String(v).trim() !== ''
 
@@ -102,7 +119,7 @@ export function validateMatchForm(form) {
     const n = i + 1
     if (n === 3) {
       // Game 3 is optional, but a partly filled Game 3 would skew the stats.
-      const started = REQUIRED_GAME_FIELDS.some((f) => hasValue(game[f]))
+      const started = GAME_STARTED_FIELDS.some((f) => hasValue(game[f]))
       if (!started) return
       if (decidedAfterTwo(form.games)) {
         errors['g3.result'] = 'The match was decided 2–0, so Game 3 should be left blank.'

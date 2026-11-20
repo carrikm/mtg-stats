@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { fetchDeckNames, submitMatch } from '../api'
 import DeckInput from '../components/DeckInput'
 import GameFields from '../components/GameFields'
-import { decidedAfterTwo, emptyForm, emptyGame, validateMatchForm } from '../stats'
+import { DEFAULT_FORMATS, decidedAfterTwo, emptyForm, emptyGame, mergeNames, validateMatchForm } from '../stats'
 
 // App only shows this page to a signed-in user.
 export default function NewMatch({ onSaved }) {
@@ -78,7 +78,7 @@ export default function NewMatch({ onSaved }) {
           className="field full-row"
           value={form.format}
           onChange={(v) => setDeck('format', v)}
-          options={deckNames.formats}
+          options={mergeNames(DEFAULT_FORMATS, deckNames.formats)}
           error={errors.format}
         />
         <DeckInput
